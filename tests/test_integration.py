@@ -1,5 +1,6 @@
 """End-to-end behaviour across modules, driven by a scripted model."""
 
+from helpers import py_command
 from kestrel.app import App
 from kestrel.llm import HashingEmbedder, ScriptedChat, text_reply, tool_reply
 
@@ -93,8 +94,8 @@ async def test_workspace_escape_is_refused_end_to_end(make_app):
 async def test_shell_runs_with_a_scrubbed_environment_and_times_out(make_app, monkeypatch):
     monkeypatch.setenv("SOME_SECRET_TOKEN", "hunter2")
     app = await make_app([
-        tool_reply("shell", {"command": "echo token=$SOME_SECRET_TOKEN; echo cwd=$(pwd)"}),
-        tool_reply("shell", {"command": "sleep 5", "timeout_s": 1}),
+        tool_reply("shell", {"command": py_command("import os; print('token=' + os.environ.get('SOME_SECRET_TOKEN', '')); print('cwd=' + os.getcwd())")}),
+        tool_reply("shell", {"command": py_command("import time; time.sleep(5)"), "timeout_s": 1}),
         text_reply("done"),
     ])
     await app.agent.run("s", "run things")

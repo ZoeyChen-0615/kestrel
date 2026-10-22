@@ -11,6 +11,8 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+import shutil
+import sys
 from contextlib import AsyncExitStack
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -44,6 +46,16 @@ def load_config(path: Path) -> list[ServerConfig]:
             risk=raw.get("risk", "write"), connect_timeout=float(raw.get("connect_timeout", 30)),
         ))
     return servers
+
+
+def resolve_command(command: str, platform: str | None = None) -> str:
+    """On Windows, launchers such as ``npx`` are ``npx.cmd`` files that CreateProcess cannot find by bare name.
+
+    Resolve the real path via PATH/PATHEXT there; elsewhere the name is used unchanged.
+    """
+    if (platform or sys.platform) != "win32":
+        return command
+    return shutil.which(command) or command
 
 
 def tool_name(server: str, tool: str) -> str:
@@ -86,7 +98,7 @@ class McpManager:
         async with AsyncExitStack() as stack:
             for config in self._servers:
                 try:
-                    params = StdioServerParameters(command=config.command, args=config.args, env=config.env or None)
+                    params = StdioServerParameters(command=resolve_command(config.command), args=config.args, env=config.env or None)
                     async with asyncio.timeout(config.connect_timeout):
                         read, write = await stack.enter_async_context(stdio_client(params))
                         session = await stack.enter_async_context(ClientSession(read, write))

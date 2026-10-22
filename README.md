@@ -36,7 +36,8 @@ kestrel> The code word is PERIDOT-42.
 Requires Python 3.11+.
 
 ```bash
-python3 -m venv venv && source venv/bin/activate
+python3 -m venv venv
+source venv/bin/activate          # Windows cmd:  venv\Scripts\activate   |   PowerShell:  venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
 
 cp .env.example .env          # then set KESTREL_API_KEY (and optionally the embedding key)
@@ -199,6 +200,18 @@ All settings come from environment variables (or `.env`). The most useful ones:
 State lives in `$KESTREL_HOME`: `state.db` (SQLite) and `workspace/` (the agent's sandbox, including
 `memory/PERSONA.md` and `memory/MEMORY.md`, which you can edit by hand; edits apply on the next run).
 
+## Platform notes
+
+Developed on macOS. CI (`.github/workflows/ci.yml`) runs the test suite on **Linux, macOS and Windows** for every push, so
+the current status per platform is whatever the latest Actions run shows; this README does not claim more than that.
+
+* **`shell` tool**: runs through the platform shell, so it is `cmd.exe` on Windows and `sh` elsewhere (the tool description
+  tells the model which one). Timeouts kill the whole process tree (`taskkill /T` on Windows, a process-group kill elsewhere).
+* **Deny-list**: covers destructive Unix commands and the common Windows equivalents (`rd /s /q C:\`, `format C:`,
+  `Remove-Item -Recurse` on a drive root, `iwr ... | iex`). It is a seat belt, not a sandbox, on every platform.
+* **MCP launchers** such as `npx` are resolved through `PATH`/`PATHEXT` on Windows (they are `.cmd` files there).
+* Terminal output is forced to UTF-8, so emoji and non-Latin text do not crash a legacy Windows console.
+
 ## Testing
 
 ```bash
@@ -224,7 +237,7 @@ tool-calling chat models but have only been exercised against scripted and fake 
 
 ## Limitations
 
-- **The shell deny-list is a seat belt, not a sandbox.** `shell` runs real commands as your user. Use
+- **The shell deny-list is a seat belt, not a sandbox** (on every platform). `shell` runs real commands as your user. Use
   `ask` mode (default) unless you trust the model and the prompt source.
 - Token counting is a character-based estimate (`chars / 3`), deliberately conservative.
 - Episodic search scans all stored vectors in memory; fine up to tens of thousands of exchanges, not millions.

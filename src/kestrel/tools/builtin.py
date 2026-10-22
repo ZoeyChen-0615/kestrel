@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import os
 import signal
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -114,19 +115,40 @@ async def list_dir(args: dict[str, Any], ctx: ToolContext) -> str:
     return "\n".join(f"{p.name}{'/' if p.is_dir() else ''}" for p in entries[:500]) or "(empty directory)"
 
 
+async def kill_process_tree(process: asyncio.subprocess.Process, platform: str | None = None) -> None:
+    """Kill ``process`` and everything it started.
+
+    POSIX: the shell runs in its own session, so the whole process group is killed.
+    Windows: there are no process groups to signal; ``taskkill /T`` walks the tree instead.
+    """
+    platform = platform or sys.platform
+    if platform == "win32":
+        killer = await asyncio.create_subprocess_exec(
+            "taskkill", "/F", "/T", "/PID", str(process.pid),
+            stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL,
+        )
+        await killer.wait()
+        return
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+
+
+def process_group_options(platform: str | None = None) -> dict[str, Any]:
+    """POSIX: start the command in its own session so a timeout can kill its children too. Windows: no such option."""
+    return {} if (platform or sys.platform) == "win32" else {"start_new_session": True}
+
+
 async def shell(args: dict[str, Any], ctx: ToolContext) -> ToolResult:
     process = await asyncio.create_subprocess_shell(
         args["command"], cwd=ctx.workspace, env=scrubbed_env(),
-        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
-        start_new_session=True,  # own process group so a timeout can kill children too
+        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT, **process_group_options(),
     )
     try:
         output, _ = await asyncio.wait_for(process.communicate(), timeout=args["timeout_s"])
     except (asyncio.TimeoutError, asyncio.CancelledError) as exc:
-        try:
-            os.killpg(process.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
+        await kill_process_tree(process)
         await process.wait()
         if isinstance(exc, asyncio.CancelledError):
             raise
@@ -192,7 +214,8 @@ def register_builtin_tools(registry: ToolRegistry) -> None:
         "write_file", "Create or overwrite a file in the workspace.", WriteFileArgs, write_file,
         idempotent=True, risk="write"))
     registry.register(Tool.from_model(
-        "shell", "Run a shell command in the workspace and return its exit code and combined output.", ShellArgs, shell,
+        "shell", ("Run a shell command in the workspace and return its exit code and combined output. "
+        + ("The shell is Windows cmd.exe, not bash." if sys.platform == "win32" else "The shell is POSIX sh/bash.")), ShellArgs, shell,
         risk="dangerous", timeout=620.0))
     registry.register(Tool.from_model(
         "recall_memory", "Search past conversations by meaning and keywords.", RecallArgs, recall_memory,

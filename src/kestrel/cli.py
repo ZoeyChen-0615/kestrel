@@ -282,7 +282,19 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _use_utf8_output() -> None:
+    """Model replies contain arbitrary Unicode; a legacy Windows code page would raise on e.g. emoji or Chinese."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            try:
+                reconfigure(encoding="utf-8", errors="replace")
+            except (ValueError, OSError):
+                pass
+
+
 def main(argv: list[str] | None = None) -> int:
+    _use_utf8_output()
     args = build_parser().parse_args(argv)
     try:
         if args.command == "chat":

@@ -37,7 +37,7 @@
     },
     {
       "id": "shell-arithmetic",
-      "prompt": "Run the shell command `echo $((6*7))` and tell me what it printed.",
+      "prompt": "Use the shell tool to compute 6 times 7 (any command that works on this machine) and tell me what it printed.",
       "checks": [
         {"type": "tool_called", "name": "shell"},
         {"type": "contains", "value": "42"}

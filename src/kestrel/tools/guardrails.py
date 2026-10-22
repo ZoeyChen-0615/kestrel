@@ -32,6 +32,13 @@ SHELL_DENY_PATTERNS = [
     r">\s*/dev/(sd|nvme|disk)",
     # Only when used as a command (start of line, after ; & | ( or sudo), not as a word inside an argument.
     r"(?:^|[;&|(]\s*|\bsudo\s+)(shutdown|reboot|halt|poweroff)\b",
+    # Windows (cmd.exe and PowerShell)
+    r"(?i)\b(rd|rmdir)\s+(/[sq]\s+)+[a-z]:\\?(\s|$)",
+    r"(?i)\bdel\s+(/[fsq]\s+)+[a-z]:\\",
+    r"(?i)\bformat\s+[a-z]:",
+    r"(?i)remove-item\b[^|;]*-recurse[^|;]*\s[a-z]:\\?(\s|$)",
+    r"(?i)\b(iwr|invoke-webrequest|irm|invoke-restmethod|curl)\b[^|;]*\|\s*(iex|invoke-expression)\b",
+    r"(?i)(?:^|[;&|(]\s*)(shutdown|restart-computer|stop-computer)\b",
 ]
 _COMPILED = [re.compile(p) for p in SHELL_DENY_PATTERNS]
 
