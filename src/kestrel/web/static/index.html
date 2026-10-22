@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kestrel</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div id="app">
+    <aside id="sidebar">
+      <div class="brand"><span class="logo">K</span> Kestrel</div>
+      <button id="new-chat" class="primary wide">+ New chat</button>
+      <ul id="session-list" aria-label="Sessions"></ul>
+      <div id="model-info" class="sidebar-foot"></div>
+    </aside>
+
+    <main>
+      <header>
+        <nav id="tabs">
+          <button data-tab="chat" class="active">Chat</button>
+          <button data-tab="trace">Trace</button>
+          <button data-tab="memory">Memory</button>
+          <button data-tab="tools">Tools &amp; skills</button>
+          <button data-tab="agents">Sub-agents</button>
+        </nav>
+        <label class="approval" title="Which actions need your confirmation">
+          Approval
+          <select id="approval-mode">
+            <option value="ask">ask first</option>
+            <option value="auto">auto-run</option>
+            <option value="readonly">read-only</option>
+          </select>
+        </label>
+      </header>
+
+      <section id="tab-chat" class="tab active">
+        <div id="messages" aria-live="polite"></div>
+        <form id="composer">
+          <textarea id="input" rows="1" placeholder="Message Kestrel…  (Enter to send, Shift+Enter for a new line)" autocomplete="off"></textarea>
+          <button id="send" type="submit" class="primary">Send</button>
+          <button id="stop" type="button" class="danger" hidden>Stop</button>
+        </form>
+      </section>
+
+      <section id="tab-trace" class="tab">
+        <div class="toolbar"><h2>Trace</h2><button id="trace-refresh">Refresh</button></div>
+        <div id="trace-summary" class="cards"></div>
+        <div class="table-wrap"><table id="trace-table"><thead><tr><th>t</th><th>kind</th><th>name</th><th>ms</th><th>details</th></tr></thead><tbody></tbody></table></div>
+      </section>
+
+      <section id="tab-memory" class="tab">
+        <h2>Persona</h2>
+        <p class="hint">Applied from the next message on. This is the system prompt's first paragraph.</p>
+        <textarea id="persona" rows="6"></textarea>
+        <div class="row"><button id="persona-save" class="primary">Save persona</button><span id="persona-status" class="hint"></span></div>
+
+        <h2>Long-term memory <span id="facts-usage" class="hint"></span></h2>
+        <ul id="facts"></ul>
+        <form id="fact-form" class="row"><input id="fact-input" type="text" maxlength="200" placeholder="Add a fact about yourself…" autocomplete="off"><button class="primary">Add</button></form>
+
+        <h2>Search past conversations</h2>
+        <form id="search-form" class="row"><input id="search-input" type="text" placeholder="Hybrid search (embeddings + keywords)…" autocomplete="off"><button class="primary">Search</button></form>
+        <div id="search-results"></div>
+      </section>
+
+      <section id="tab-tools" class="tab">
+        <h2>Tools</h2>
+        <div class="table-wrap"><table id="tools-table"><thead><tr><th>name</th><th>risk</th><th>flags</th><th>description</th></tr></thead><tbody></tbody></table></div>
+        <h2>Skills</h2>
+        <div id="skills-list"></div>
+        <h2>MCP servers</h2>
+        <div id="mcp-list"></div>
+      </section>
+
+      <section id="tab-agents" class="tab">
+        <div class="toolbar"><h2>Sub-agent jobs</h2><button id="jobs-refresh">Refresh</button></div>
+        <div id="jobs-list"></div>
+      </section>
+    </main>
+  </div>
+
+  <div id="gate" hidden>
+    <div class="gate-card">
+      <h1>Access token needed</h1>
+      <p id="gate-text">Open the full link printed by <code>kestrel web</code> in your terminal. It contains a secret token after the <code>#</code>.</p>
+    </div>
+  </div>
+  <script src="/app.js"></script>
+</body>
+</html>
