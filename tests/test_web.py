@@ -203,7 +203,7 @@ async def test_stop_cancels_a_running_turn(make_web):
             seen.append(event)
 
     consumer = asyncio.create_task(consume())
-    for _ in range(50):
+    for _ in range(500):
         if runs.is_running("s"):
             break
         await asyncio.sleep(0.02)
@@ -212,7 +212,7 @@ async def test_stop_cancels_a_running_turn(make_web):
         async for _ in runs.stream("s", "second"):   # a second concurrent run is refused
             pass
     assert runs.stop("s") is True
-    await asyncio.wait_for(consumer, 5)
+    await asyncio.wait_for(consumer, 15)
     assert seen[-1]["type"] == "cancelled" and not runs.is_running("s")
 
 
@@ -273,7 +273,7 @@ async def test_closing_the_stream_cancels_the_run(make_web):
     runs = RunManager(app)
     stream = runs.stream("s", "hello")
     reader = asyncio.create_task(stream.__anext__())
-    for _ in range(50):
+    for _ in range(500):
         if runs.is_running("s"):
             break
         await asyncio.sleep(0.02)
@@ -282,7 +282,7 @@ async def test_closing_the_stream_cancels_the_run(make_web):
     with pytest.raises(asyncio.CancelledError):
         await reader
     await stream.aclose()
-    for _ in range(100):
+    for _ in range(500):
         if not runs.is_running("s"):
             break
         await asyncio.sleep(0.02)

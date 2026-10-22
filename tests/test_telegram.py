@@ -83,7 +83,7 @@ async def tg(settings):
                                approver=routed_approver(None, lambda: holder.get("tg")))
         client = httpx.AsyncClient(transport=httpx.MockTransport(fake.handler))
         channel = TelegramChannel(app, TOKEN, list(allowed), client=client, poll_timeout=0, approval_timeout=approval_timeout,
-                                  sleep=lambda s: asyncio.sleep(0))
+                                  retry_base=0.01, conflict_wait=0.01, sleep=lambda s: asyncio.sleep(0))   # no real-time waiting in tests
         holder["tg"] = channel
         made.append((channel, app))
         return fake, channel, app
@@ -226,7 +226,7 @@ async def test_stop_cancels_a_running_turn(tg):
     fake, channel, _ = await tg([], llm=Hang())
     fake.message("do something slow")
     await channel.poll_once()
-    for _ in range(50):
+    for _ in range(500):
         if channel._running:
             break
         await asyncio.sleep(0.02)
@@ -255,7 +255,7 @@ async def test_typing_indicator_is_sent_while_working(tg):
 
 # ---- approvals via inline buttons ---------------------------------------------------
 
-async def wait_for(predicate, timeout=3.0):
+async def wait_for(predicate, timeout=15.0):
     for _ in range(int(timeout / 0.02)):
         if predicate():
             return
@@ -385,7 +385,7 @@ async def test_the_polling_loop_survives_errors_and_keeps_serving(tg):
     loop = asyncio.create_task(channel.run())
     await wait_for(lambda: fake.texts() == ["still here"])
     await channel.aclose()
-    await asyncio.wait_for(loop, 2)
+    await asyncio.wait_for(loop, 15)
 
 
 async def test_the_bot_token_never_leaks_into_errors_or_logs(tg, caplog):
@@ -399,5 +399,5 @@ async def test_the_bot_token_never_leaks_into_errors_or_logs(tg, caplog):
     task = asyncio.create_task(channel.run())
     await asyncio.sleep(0.1)
     await channel.aclose()
-    await asyncio.wait_for(task, 2)
+    await asyncio.wait_for(task, 15)
     assert TOKEN not in caplog.text

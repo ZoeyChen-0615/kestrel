@@ -117,6 +117,9 @@ class TelegramChannel:
         client: httpx.AsyncClient | None = None,
         poll_timeout: int = 30,
         approval_timeout: float = 120.0,
+        retry_base: float = 1.0,
+        retry_cap: float = 60.0,
+        conflict_wait: float = 15.0,
         sleep=asyncio.sleep,
     ) -> None:
         if not token:
@@ -133,6 +136,8 @@ class TelegramChannel:
         self._client = client or httpx.AsyncClient(timeout=poll_timeout + 15)
         self._owns_client = client is None
         self._approval_timeout = approval_timeout
+        # Polling-loop back-off, configurable so tests need not wait in real time.
+        self._retry_base, self._retry_cap, self._conflict_wait = retry_base, retry_cap, conflict_wait
         self._sleep = sleep
         self._stop = asyncio.Event()
         self._tasks: set[asyncio.Task[None]] = set()
@@ -217,22 +222,22 @@ class TelegramChannel:
 
     async def run(self) -> None:
         """Poll until :meth:`aclose`. Errors back off and retry; the loop itself never dies."""
-        delay = 1.0
+        delay = self._retry_base
         while not self._stop.is_set():
             try:
                 received = await self.poll_once()
-                delay = 1.0
+                delay = self._retry_base
                 if received == 0 and self._poll_timeout == 0:
                     await self._interruptible_sleep(0.2)   # short polling must not spin the CPU
             except asyncio.CancelledError:
                 raise
             except TelegramConflict as exc:
-                log.error("%s. Stop the other process or use a different bot. Retrying in 15s.", exc)
-                await self._interruptible_sleep(15)
+                log.error("%s. Stop the other process or use a different bot. Retrying in %.3gs.", exc, self._conflict_wait)
+                await self._interruptible_sleep(self._conflict_wait)
             except Exception as exc:
-                log.warning("polling error: %s; retrying in %.0fs", self._scrub(str(exc)), delay)
+                log.warning("polling error: %s; retrying in %.3gs", self._scrub(str(exc)), delay)
                 await self._interruptible_sleep(delay)
-                delay = min(delay * 2, 60)
+                delay = min(delay * 2, self._retry_cap)
 
     async def _interruptible_sleep(self, seconds: float) -> None:
         try:

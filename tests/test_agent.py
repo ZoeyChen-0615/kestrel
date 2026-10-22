@@ -107,23 +107,31 @@ async def test_parallel_safe_calls_run_concurrently_and_are_stored_in_order(make
     class Empty(BaseModel):
         pass
 
-    active, peak = 0, 0
+    running, peak = 0, 0
+    both_running = asyncio.Event()
 
     async def slow(args, ctx):
-        nonlocal active, peak
-        active += 1
-        peak = max(peak, active)
-        await asyncio.sleep(0.05)
-        active -= 1
-        return "done"
+        # Returns only once the OTHER call is running too, so the test cannot depend on machine speed:
+        # if the calls were executed one after another this would time out and `peak` would stay at 1.
+        nonlocal running, peak
+        running += 1
+        try:
+            peak = max(peak, running)
+            if running == 2:
+                both_running.set()
+            await asyncio.wait_for(both_running.wait(), 5)
+            return "done"
+        finally:
+            running -= 1       # `peak` must measure calls that were running AT THE SAME TIME
 
     two_calls = ChatResponse(content="", finish_reason="tool_calls", tool_calls=[ToolCall("a", "slow", "{}"), ToolCall("b", "slow", "{}")])
     app = await make_app([two_calls, text_reply("ok")])
     app.registry.register(Tool.from_model("slow", "s", Empty, slow, parallel_safe=True, idempotent=True))
     await app.agent.run("s", "go")
     assert peak == 2
-    tool_ids = [m["tool_call_id"] for _, m in app.store.load_context("s")[2] if m["role"] == "tool"]
-    assert tool_ids == ["a", "b"]
+    tool_messages = [m for _, m in app.store.load_context("s")[2] if m["role"] == "tool"]
+    assert [m["tool_call_id"] for m in tool_messages] == ["a", "b"]
+    assert [m["content"] for m in tool_messages] == ["done", "done"]      # both really finished, neither timed out
 
 
 async def test_non_parallel_calls_run_one_at_a_time(make_app):

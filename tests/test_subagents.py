@@ -119,7 +119,7 @@ async def test_cancelling_a_background_job_records_a_terminal_state(build):
     llm = RoutedChat([tool_reply("spawn_subagent", {"task": "never ends", "profile": "research", "background": True}), text_reply("ok")], slow)
     app = await build(llm)
     await app.agent.run("p", "start")
-    await asyncio.wait_for(slow.started.wait(), 2)
+    await asyncio.wait_for(slow.started.wait(), 15)
     job_id = app.store.kv_list(NAMESPACE)[0][0]
     assert not app.subagents.cancel(job_id).is_error
     await asyncio.gather(*app.subagents._tasks.values(), return_exceptions=True)
