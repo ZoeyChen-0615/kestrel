@@ -33,17 +33,34 @@ kestrel> The code word is PERIDOT-42.
 
 ## Quick start
 
-Requires Python 3.11+.
+Requires Python 3.11+ and a copy of this repository (`git clone`, then `cd kestrel`).
+
+**macOS / Linux**
 
 ```bash
 python3 -m venv venv
-source venv/bin/activate          # Windows cmd:  venv\Scripts\activate   |   PowerShell:  venv\Scripts\Activate.ps1
+source venv/bin/activate
 pip install -e ".[dev]"
+cp .env.example .env              # then set KESTREL_API_KEY (and optionally the embedding key)
+```
 
-cp .env.example .env          # then set KESTREL_API_KEY (and optionally the embedding key)
-kestrel info                  # shows the effective configuration
-kestrel chat                  # terminal
-kestrel web                   # browser UI (prints a link with your access token)
+**Windows (PowerShell)**
+
+```powershell
+py -3 -m venv venv                # or: python -m venv venv
+venv\Scripts\Activate.ps1         # if scripts are blocked: Set-ExecutionPolicy -Scope Process Bypass
+pip install -e ".[dev]"
+Copy-Item .env.example .env       # then set KESTREL_API_KEY (and optionally the embedding key)
+```
+
+**Windows (cmd.exe)**: `py -3 -m venv venv`, `venv\Scripts\activate.bat`, `pip install -e ".[dev]"`, `copy .env.example .env`.
+
+Then, on any platform (run these **from the repository folder**, because `.env` is read from the current directory):
+
+```bash
+kestrel info                      # shows the effective configuration
+kestrel chat                      # terminal
+kestrel web                       # browser UI (prints a link with your access token)
 ```
 
 No API key yet? Run the whole loop against a scripted model:
@@ -51,6 +68,8 @@ No API key yet? Run the whole loop against a scripted model:
 ```bash
 python examples/offline_demo.py
 ```
+
+Where your data lives: `~/.kestrel` on macOS/Linux, `%USERPROFILE%\.kestrel` on Windows (override with `KESTREL_HOME`).
 
 ### Commands
 
@@ -118,9 +137,11 @@ kestrel web
 ### Using MCP servers
 
 ```bash
-cp mcp_servers.example.json mcp_servers.json     # edit as needed
+cp mcp_servers.example.json mcp_servers.json     # edit as needed (Windows cmd.exe: copy; PowerShell accepts cp)
 kestrel chat --mcp mcp_servers.json
 ```
+
+The example starts `mcp-server-time` with `uvx`, so it needs [uv](https://docs.astral.sh/uv/) installed (servers started with `npx` need Node.js).
 
 Each server entry has `command`, `args`, optional `env`, and a `risk` of `read` (no approval needed) or
 `write` (default; goes through the approval policy). Tools appear as `<server>__<tool>`.
